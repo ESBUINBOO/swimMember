@@ -1,0 +1,5 @@
+/fastapi_service.txt
+/stuff.txt
+/venv/
+.env
+*.pyc

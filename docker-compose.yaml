@@ -1,0 +1,21 @@
+version: "3.7"
+
+services:
+  mongo:
+    build: ./mongoDB
+    container_name: mongo_db_${STAGE}
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGODB_NAME}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PWD}
+    volumes:
+      - mongodb-data:/data/db
+    ports:
+      # - ${MONGODB_START_PORT}-${MONGODB_END_PORT}:27017-27019
+      - 27017-27019:27017-27019
+
+volumes:
+  mongodb-data:
+    external:
+      name: mongodb-data-${STAGE}
+
