@@ -36,8 +36,8 @@ class Address(BaseModel):
 
 class Member(BaseModel):
     # todo: EMailStr zum Laufen bekommen
-    firstname: str
-    lastname: str
+    first_name: str
+    last_name: str
     birth: str
     gender: str
     address: Address

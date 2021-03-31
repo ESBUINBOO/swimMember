@@ -51,7 +51,7 @@ async def create_meeting(meeting: Meeting):
     :return: member object
     """
     try:
-
+        pass
         return
     except Exception as err:
         logger.error('Error in create_meeting() err: {}'.format(err))
@@ -77,4 +77,12 @@ async def get_one_meeting_by_meeting_id(meeting_id: str):
 async def get_all_meetings(date: Optional[str] = Query(None),
                            name: Optional[str] = Query(None),
                            organizer_name: Optional[str] = Query(None)):
-    pass
+    query = {}
+    if date:
+        query["meta.date"] = date
+    if name:
+        query["meta.meeting_name"] = name
+    if organizer_name:
+        query["meta.organizer.club"] = organizer_name
+    members = mongo_handler.find_many_docs(col="meetings", query=query)
+    return {"message": members}

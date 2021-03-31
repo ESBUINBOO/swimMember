@@ -3,12 +3,16 @@ import shutil
 from collections import defaultdict
 import logging
 import sys
+from datetime import datetime
+
+from dsv6_data_classes import *
+from dsv6_class_mapper import Dsv6ClassMapper
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
-class Dsv6FileHandler:
+class Dsv6FileHandler(Dsv6ClassMapper):
     """
     # todo: der Handler soll auch Meldedateien erstellen können!
     This class handles DSV6-Files. If you want to proceed files you call the var "files_to_proceed", but you need to
@@ -25,6 +29,7 @@ class Dsv6FileHandler:
                 print(k, v)
     """
     def __init__(self):
+        super().__init__()
         self.base_dir = os.path.abspath(os.path.dirname(__file__))
         self.file_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'files'))
         self.file_done_dir = os.path.join(self.file_dir, "done")
@@ -37,6 +42,23 @@ class Dsv6FileHandler:
 
     def update(self):
         self.__get_all_files()
+
+    @staticmethod
+    def validate_date_time(date_text):
+        try:
+            datetime.strptime(date_text, '%H:%M')
+            return True
+        except ValueError as err:
+            print("Incorrect data format, should be H:M. Error: {}".format(err))
+            return False
+
+    @staticmethod
+    def validate_date(date_text):
+        try:
+            datetime.strptime(date_text, '%d.%m.%Y')
+            return True
+        except ValueError as err:
+            print("Incorrect data format, should be HH.MM. Error: {}".format(err))
 
     def __get_all_files(self):
         self.files_to_proceed = [os.path.join(self.file_dir, f) for f in os.listdir(self.file_dir)
@@ -92,7 +114,29 @@ class Dsv6FileHandler:
         self.mapped_events = defaultdict(list)
         self.file_lines = []
 
-    def get_results_from_file(self, file_to_proceed):  # rename func to analyze_dsv6_file
+    def __get_format(self, file_to_proceed):
+        """
+        check if file is a meeting definition or a meeting result list
+        """
+        self.__read_file(file_to_proceed=file_to_proceed)
+        if len(self.file_lines) > 0:
+            for line in self.file_lines:
+                line_values = [i.split() for i in line.split(';') if i != '']
+                if line_values[0][0] == "FORMAT:":
+                    return line_values[0][1]
+        else:
+            logger.info("no lines to proceed!")
+
+    def __choose_function(self, file_to_proceed):
+        file_type = self.__get_format(file_to_proceed=file_to_proceed)
+        if file_type == "Wettkampfdefinitionsliste":
+            # its a competition definition list
+            return self.__proceed_competition_definition()
+        elif file_type == "Wettkampfergebnisliste":
+            # its a competition result list
+            return self.__proceed_competition_result()
+
+    def __proceed_competition_result(self):
         """
         data structur:
                     {dsv_id: [
@@ -105,8 +149,6 @@ class Dsv6FileHandler:
         """
         logger.info("get_results_from_file()")
         swimmers_result = defaultdict(list)
-
-        self.__read_file(file_to_proceed=file_to_proceed)
         if len(self.file_lines) > 0:
             for line in self.file_lines:
                 event_dict = {"places": []}
@@ -156,3 +198,66 @@ class Dsv6FileHandler:
         # self.__move_file_to_done(file_to_proceed=file_to_proceed)
         return swimmers_result
 
+    def __proceed_competition_definition(self):
+        logger.info("__proceed_competition_definition()")
+        if len(self.file_lines) > 0:
+            for line in self.file_lines:
+                line_values = [i.split() if i else [] for i in line.split(';')]
+                # print(line_values)
+                if line_values[0][0] == "VERANSTALTUNG:":
+                    mapping = self._Dsv6ClassMapper__veranstaltung_mapper(line=line[15:])
+                    dc_veranstaltung = Veranstaltung(**mapping)
+                    dc_veranstaltung.zeitmessung = ZeitMessung(mapping["zeitmessung"])
+                    print(dc_veranstaltung)
+                if line_values[0][0] == "VERANSTALTUNGSORT:":
+                    mapping = self._Dsv6ClassMapper__veranstaltungsort_mapper(line=line[19:])
+                    dc_veranstaltungsort = VeranstaltungsOrt(**mapping)
+                    print(dc_veranstaltungsort)
+                if line_values[0][0] == "AUSSCHREIBUNGIMNETZ:":
+                    mapping = self._Dsv6ClassMapper__ausschreibung_im_netz_mapper(line=line[21:])
+                    if list(mapping.values())[0] == "":
+                        print("AusschreibungImNetz ist nicht gefüllt")
+                    else:
+                        dc_ausschreibung_im_netz = AusschreibungImNetz(**mapping)
+                        print(dc_ausschreibung_im_netz)
+                if line_values[0][0] == "VERANSTALTER:":
+                    mapped_veranstalter = self._Dsv6ClassMapper__veranstalter_mapper(line=line[14:])
+                    dc_veranstalter = Veranstalter(**mapped_veranstalter)
+                    print(dc_veranstalter)
+                elif line_values[0][0] == "AUSRICHTER:":
+                    mapped_data = self._Dsv6ClassMapper__ausrichter_mapper(line=line[12:])
+                    dc_ausrichter = Ausrichter(**mapped_data)
+                    print(dc_ausrichter)
+                elif line_values[0][0] == "MELDEADRESSE:":
+                    mapped_data = self._Dsv6ClassMapper__meldeadresse_mapper(line=line[14:])
+                    dc_meldeadresse = MeldeAdresse(**mapped_data)
+                    print(dc_meldeadresse)
+                elif line_values[0][0] == "MELDESCHLUSS:":
+                    mapped_data = self._Dsv6ClassMapper__meldeschluss_mapper(line=line[14:])
+                    print(mapped_data)
+                    if self.validate_date(date_text=mapped_data["datum"]) and \
+                            self.validate_date_time(date_text=mapped_data["uhrzeit"]):
+                        dc_meldeschluss = Meldeschluss(**mapped_data)
+                        print(dc_meldeschluss)
+                    else:
+                        print("invalid date format!")
+
+                elif line_values[0][0] == "ABSCHNITT:":
+                    pass
+
+                elif line_values[0][0] == "WETTKAMPF:":
+                    pass
+                elif line_values[0][0] == "WERTUNG:":
+                    pass
+                elif line_values[0][0] == "PFLICHTZEIT:":
+                    pass
+                elif line_values[0][0] == "MELDEGELD:":
+                    pass
+
+    def analyse_dsv6_file(self, file_to_proceed):
+        self.__choose_function(file_to_proceed=file_to_proceed)
+
+
+dsv_handler = Dsv6FileHandler()
+dsv_handler.update()
+dsv_handler.analyse_dsv6_file(file_to_proceed="../files/2018-11-11-Osnabrue-Wk.dsv6")
