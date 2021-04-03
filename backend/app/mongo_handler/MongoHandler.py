@@ -141,8 +141,10 @@ class MongoHandler(object):
         :return:
         """
         try:
+            print(query)
             date = datetime.datetime.now().replace(microsecond=0).isoformat()
-            query.update({"updated": date})
+            query["$set"].update({"updated": date})
+            print(query)
             result = self.db[col].update_one(filter=_filter, update=query, upsert=False).modified_count
             return result
         except Exception as err:

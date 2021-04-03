@@ -9,8 +9,8 @@ import pydantic
 class Bahnlaenge(str, Enum):
     kuba = "25"
     laba = "50"
-    fw = "Freiwasser"
-    al = "alle Bahnlängen"
+    fw = "FW"
+    alle_bahnlaengen = "AL"
 
 
 @dataclass
@@ -163,7 +163,7 @@ class Veranstaltung:
 
 
 @dataclass
-class VeranstaltungsOrt():
+class VeranstaltungsOrt:
     """
     required fields: name_schwimmhalle, ort, land
     """
@@ -173,16 +173,15 @@ class VeranstaltungsOrt():
     address: Address
 
 
-
 @dataclass
 class Abschnitt:
     __slots__ = ["abschnitts_nummer", "abschnitts_datum", "einlass",
                  "kampfrichtersitzung", "anfangszeit", "relative_angaben"]
     abschnitts_nummer: int
-    abschnitts_datum: datetime
-    einlass: datetime
-    kampfrichtersitzung: datetime
-    anfangszeit: datetime
+    abschnitts_datum: str
+    einlass: str
+    kampfrichtersitzung: str
+    anfangszeit: str
     relative_angaben: str
 
 
@@ -259,8 +258,8 @@ class Nachweis:
     required fields: nachweis_von, bahnlaenge
     """
     __slots__ = ["nachweis_von", "nachweis_bis", "bahnlaenge"]
-    nachweis_von: datetime
-    nachweis_bis: datetime
+    nachweis_von: str
+    nachweis_bis: str
     bahnlaenge: Bahnlaenge
 
 

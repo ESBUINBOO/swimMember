@@ -1,5 +1,5 @@
 import pandas as pd
-from dsv6_data_classes import *
+from .dsv6_data_classes import *
 
 
 class Dsv6ClassMapper:
@@ -31,8 +31,13 @@ class Dsv6ClassMapper:
 
     @staticmethod
     def __veranstaltung_mapper(line):
-        base = pd.DataFrame(columns=["veranstaltungs_beschreibung", "veranstaltungs_ort", "bahnlaenge", "zeitmessung"],
-                            data=[line.split(';')[:4]]).to_dict('records')[0]
+        # base = pd.DataFrame(columns=["veranstaltungs_beschreibung", "veranstaltungs_ort", "bahnlaenge", "zeitmessung"],
+        #                     data=[line.split(';')[:4]]).to_dict('records')[0]
+        base = pd.DataFrame(columns=["veranstaltungs_beschreibung", "veranstaltungs_ort"],
+                            data=[line.split(';')[:2]]).to_dict('records')[0]
+        bahnlaenge = pd.DataFrame(columns=["bahnlaenge"], data=[line.split(';')[2:3]]).to_dict('records')[0]
+        zeitmessung = pd.DataFrame(columns=["zeitmessung"], data=[line.split(';')[3:4]]).to_dict('records')[0]
+        base["bahnlaenge"], base["zeitmessung"] = bahnlaenge["bahnlaenge"], zeitmessung["zeitmessung"]
         return base
 
     def __veranstaltungsort_mapper(self, line):
@@ -75,26 +80,45 @@ class Dsv6ClassMapper:
                             data=[line.split(';')[0:2]]).to_dict('records')[0]
         return base
 
-    def __bankverbindung_mapper(self):
-        pass
+    def __bankverbindung_mapper(self, line):
+        base = pd.DataFrame(columns=["name_bank", "iban", "bic"],
+                            data=[line.split(';')[0:3]]).to_dict('records')[0]
+        return base
 
-    def __besonderes_mapper(self):
-        pass
+    def __besonderes_mapper(self, line):
+        base = pd.DataFrame(columns=["anmerkungen"],
+                            data=[line.split(';')[0:1]]).to_dict('records')[0]
+        return base
 
-    def __nachweis_mapper(self):
-        pass
+    def __nachweis_mapper(self, line):
+        base = pd.DataFrame(columns=["nachweis_von", "nachweis_bis", "bahnlaenge"],
+                            data=[line.split(';')[0:3]]).to_dict('records')[0]
+        return base
 
-    def __abschnitt_mapper(self):
-        pass
+    def __abschnitt_mapper(self, line):
+        base = pd.DataFrame(columns=["abschnitts_nummer", "abschnitts_datum", "einlass", "kampfrichtersitzung",
+                                     "anfangszeit", "relative_angaben"],
+                            data=[line.split(';')[0:6]]).to_dict('records')[0]
+        return base
 
-    def __wettkampf_mapper(self):
-        pass
+    def __wettkampf_mapper(self, line):
+        base = pd.DataFrame(columns=["wettkampf_nr", "wettkampf_art", "abschnitts_nr", "anzahl_starter",
+                                     "einzelstrecke", "technik", "ausuebung", "geschlecht", "zuordnung_bestenliste",
+                                     "quali_wettkampfnr", "quali_wettkampfart"],
+                            data=[line.split(';')[:11]]).to_dict('records')[0]
+        return base
 
-    def __wertung_mapper(self):
-        pass
+    def __wertung_mapper(self, line):
+        base = pd.DataFrame(columns=["wettkampf_nr", "wettkampf_art", "wertungs_id", "wertungs_klasse",
+                                     "min_jg", "max_jg", "geschlecht", "wertungs_name"],
+                            data=[line.split(';')[:8]]).to_dict('records')[0]
+        return base
 
-    def __pflichtzeit_mapper(self):
-        pass
+    def __pflichtzeit_mapper(self, line):
+        base = pd.DataFrame(columns=["wettkampf_nr", "wettkampf_art", "wertungs_klasse", "min_jg", "max_jg",
+                                     "pflichtzeit", "geschlecht"],
+                            data=[line.split(';')[:7]]).to_dict('records')[0]
+        return base
 
     def __meldegeld_mapper(self):
         pass
