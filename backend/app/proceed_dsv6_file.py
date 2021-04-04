@@ -36,7 +36,6 @@ for dsv_file in dsv_handler.files_to_proceed.copy():
                 if isinstance(v, list):
                     meeting[k] = []
                     for item in v:
-                        # print(k, asdict(item))
                         meeting[k].append(asdict(item))
                 else:
                     # todo: ENUM dataclasses which are fields, wont be casted to dict (its empty),
@@ -69,7 +68,7 @@ for dsv_file in dsv_handler.files_to_proceed.copy():
             results["meeting_results"].pop("meta", None)
             query = {"$set": {"results": results}, "$addToSet": {"file_hash": file_hash}}
             doc_id = mongo_handler.update_one_doc(col="meetings",
-                                                  _filter={'meeting_definition.Veranstaltung.veranstaltungs_beschreibung': meta["meeting_name"]},
+                                                  _filter={'meeting_definition.Veranstaltung.veranstaltungs_beschreibung': meta["veranstaltungs_beschreibung"]},
                                                   query=query)
             print(doc_id)
     else:

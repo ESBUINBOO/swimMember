@@ -99,35 +99,39 @@ class MongoHandler(object):
         except Exception as err:
             logger.error("Error in delete_doc(): {}".format(str(err)))
 
-    def find_one_doc(self, col, query):
+    def find_one_doc(self, col, query, fields_to_hide=None):
         """
         finds a document in a given collection with a given query
         it returns the document without the ObjectId _id
         :param col:
         :param query:
+        :param fields_to_hide:
         :return: document
         :rtype: dict
         """
         try:
-            doc = self.db[col].find_one(query)
+            if fields_to_hide:
+                print(fields_to_hide)
+            doc = self.db[col].find_one(query, fields_to_hide)
             if doc is not None:
                 doc["_id"] = str(doc["_id"])
             return doc
         except Exception as err:
             logger.error("Error in find_one_doc(): {}".format(str(err)))
 
-    def find_many_docs(self, col, query, limit=50):
+    def find_many_docs(self, col, query, limit=50, fields_to_hide=None):
         """
         finds documents in a given collection with a given query
         :param col:
         :param query:
         :param limit:
+        :param fields_to_hide:
         :return: list of documents where _id is a string, not an ObjectId
         :rtype: list
         """
         try:
             # todo: regex => Groß- und Kleinschreibung sollte egal sein bsp: regx = re.compile("^foo", re.IGNORECASE)
-            docs = self.db[col].find(query).limit(limit)
+            docs = self.db[col].find(query, fields_to_hide).limit(limit)
             return self.convert_mongodb_cursor_to_list(docs)
         except Exception as err:
             logger.error("Error in find_many_docs(): {}".format(str(err)))

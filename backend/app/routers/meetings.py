@@ -76,13 +76,15 @@ async def get_one_meeting_by_meeting_id(meeting_id: str):
 @router.get('/api/v1/meeting/', tags=["meeting"])
 async def get_all_meetings(date: Optional[str] = Query(None),
                            name: Optional[str] = Query(None),
-                           organizer_name: Optional[str] = Query(None)):
+                           detailed: bool = Query(False)):
     query = {}
+    fields_to_hide = {"meeting_definition.Wertungen": 0, "meeting_definition.Wettkaempfe": 0,
+                      "meeting_definition.Pflichtzeiten": 0, "created": 0, "updated": 0, "file_hash": 0}
     if date:
-        query["meta.date"] = date
+        query["meeting_definition.Abschnitte.abschnitts_datum"] = date
     if name:
-        query["meta.meeting_name"] = name
-    if organizer_name:
-        query["meta.organizer.club"] = organizer_name
-    members = mongo_handler.find_many_docs(col="meetings", query=query)
-    return {"message": members}
+        query["meeting_definition.Abschnitte.abschnitts_datum"] = name
+    if detailed:
+        fields_to_hide = None
+    meetings = mongo_handler.find_many_docs(col="meetings", query=query, fields_to_hide=fields_to_hide)
+    return {"message": meetings}
