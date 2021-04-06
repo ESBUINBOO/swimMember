@@ -19,6 +19,7 @@ class ZeitMessung(str, Enum):
     automatisch = "AUTOMATISCH"
     halb_automatisch = "HALBAUTOMATISCH"
 
+
 @dataclass
 class Technik(str, Enum):
     freistil = "F"

@@ -60,9 +60,6 @@ for dsv_file in dsv_handler.files_to_proceed.copy():
             doc_id = mongo_handler.insert_doc(col="meetings", obj=obj)
             print(doc_id)
         elif list(results.keys())[0] is dsv_handler.return_def[1]:
-            # todo: the results have to be inserted in a existing document,
-            #  because the meeting should be created already.
-            #  So we need to search with a meta data for the meeting document
             print("its a meeting result")
             meta = results["meeting_results"]["meta"][0]
             results["meeting_results"].pop("meta", None)

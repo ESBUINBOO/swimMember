@@ -77,7 +77,6 @@ async def update_member(member_id: str, member: Member):
 
 @router.delete('/api/v1/member/{member_id}', tags=["member"])
 async def delete_member(member_id: str):
-    # todo: nicht jedes member wird eine member_reg_id haben, da er kein sportler ist
     result = mongo_handler.delete_doc(col="members", query={"_id": ObjectId(member_id)})
     return {"message": result}
 

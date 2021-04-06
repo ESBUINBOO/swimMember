@@ -154,21 +154,19 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
         """
         data structur:
                     {dsv_id: [
-                        {event_name: "",
-                        places: [{group_age: event_place}],
-                        time: ""}
-                        ]
+                                {
+                                    event_name: [{_wk_art_: {wertung: event_place, time: _time_}}]
+                                }
+                            ]
                     }
         :return:
         """
         # todo refactor the mapper funcs to the proper methods (Veranstaltung, Wettkampf, Wertung)
-        # todo we need another Dsv6ClassMapper for result file
-        # todo: we dont need to transform to data class, because the values should be correct
         logger.info("__proceed_competition_result()")
         swimmers_result = defaultdict(list)
         if len(self.file_lines) > 0:
             for line in self.file_lines:
-                event_dict = {"places": []}
+                event_dict = defaultdict(list)
                 line_values = [i.split() for i in line.split(';') if i != '']
                 if line_values[0][0] == "VERANSTALTUNG:":
                     self.mapped_meeting = self._Dsv6BaseClassMapper__veranstaltung_mapper(line=line[15:])
@@ -188,36 +186,35 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                          "description": mapped_wertung["wertungs_name"]})
 
                 if line_values[0][0] == "PNERGEBNIS:":
-                    # todo: die ergebnisse müssen nach der WK-Art (Vorlauf, Finale, etc) sortiert werden
                     if " ".join(line_values[9]) in self.club_names:
                         mapped_pnergebnis = self._Dsv6ResultClassMapper__pnergebnis_mapper(line=line[12:])
                         swimmer_reg_id = mapped_pnergebnis["dsv_id"]
+                        competition_type = mapped_pnergebnis["wettkampf_art"]
                         event = self.mapped_events[mapped_pnergebnis["wettkampf_nr"]][0]["event"]
                         group_age = self.mapped_groups_age[mapped_pnergebnis["wertungs_id"]][0]["description"]
                         event_time = mapped_pnergebnis["endzeit"]
                         event_place = int(mapped_pnergebnis["platz"])
+                        event_dict[event].append({competition_type: {group_age: event_place, "time": event_time}})
                         if len(swimmers_result[swimmer_reg_id]) > 0:
                             for i in range(0, len(swimmers_result[swimmer_reg_id])):
-                                i_values = swimmers_result[swimmer_reg_id][i].values()
+                                i_values = swimmers_result[swimmer_reg_id][i].keys()
                                 if event in i_values:
                                     # if we found the already existing part,
                                     # we add the group_age + placing and ending the search
-                                    swimmers_result[swimmer_reg_id][i]["places"].append({group_age: event_place})
+                                    if competition_type in swimmers_result[swimmer_reg_id][i][event][0]:
+                                        swimmers_result[swimmer_reg_id][i][event][0][competition_type].update(
+                                            event_dict[event][0][competition_type])
+                                    else:
+                                        swimmers_result[swimmer_reg_id][i][event].append(
+                                            event_dict[event][0])
                                     break
                                 elif event not in i_values:
                                     if i + 1 == len(swimmers_result[swimmer_reg_id]):
                                         # if the for-loop comes to and end, but no event was found, we add it
-                                        event_dict["event"] = event
-                                        event_dict["time"] = event_time
-                                        event_dict["places"].append({group_age: event_place})
                                         swimmers_result[swimmer_reg_id].append(event_dict)
                                     else:
                                         continue
                         else:
-                            # swimmers_result[swimmer_reg_id[0]] is empty
-                            event_dict["event"] = event
-                            event_dict["time"] = event_time
-                            event_dict["places"].append({group_age: event_place})
                             swimmers_result[swimmer_reg_id].append(event_dict)
         else:
             logger.info("no lines to proceed!")
@@ -344,14 +341,3 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
         :return_type dict
         """
         return self.__choose_function(file_to_proceed=file_to_proceed)
-
-
-# dsv_handler = Dsv6FileHandler()
-# dsv_handler.update()
-# result = dsv_handler.analyse_dsv6_file(file_to_proceed="../files/2018-11-11-Osnabrue-Wk.dsv6")
-# print(result.keys())
-# for k, v in list(result.values())[0].items():
-#     if isinstance(v, list):
-#         for item in v:
-#             print(k, asdict(item))
-
