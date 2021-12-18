@@ -6,14 +6,14 @@ import sys
 from datetime import datetime
 import time
 sys.path.append("app")
-from helper.read_config import read_config
-config = read_config()
 
+
+# this should be done via Logging Config
+# copy the ELK Logger from itsc
 
 class SystemLogHandler(logging.Handler):
     """
-    Customized logging handler that puts logs to the database.
-    psycopg2 required
+    Customized logging handler that puts logs to mongo database
     """
     def __init__(self):
         logging.Handler.__init__(self)
@@ -42,12 +42,12 @@ class SystemLogHandler(logging.Handler):
         # Clear the log message so it can be put to db via sql (escape quotes)
         log_msg = record.msg
         log_level = str(record.levelno)
-        log_levelname = str(record.levelname)
+        log_level_name = str(record.levelname)
         create_date = datetime.now().isoformat()
         created_by = str(record.name)
         query = {'log_message': log_msg,
                  'log_level': log_level,
-                 'log_level_name': log_levelname,
+                 'log_level_name': log_level_name,
                  'created_by': created_by,
                  'create_date': create_date}
         self.logging_collection.insert_one(query)

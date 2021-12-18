@@ -12,8 +12,11 @@ def read_config():
         config.read(config_file)
         for section in config:
             for key in config[section]:
-                config_vars[key] = config[section][key]
+                config_vars[key.upper()] = config[section][key]
         return config_vars
     else:
         print('config.ini not found!')
         return
+
+
+CONFIGS = read_config()

@@ -10,13 +10,15 @@ from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
-
+from helper.read_config import CONFIGS
 logger = logging.getLogger('ROUTER_MEMBERS_API_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 router = APIRouter()
-mongo_handler = MongoHandler()
-print(__name__, id(mongo_handler))
+print(__name__)
+print(CONFIGS)
+mongo_handler = MongoHandler(uri=CONFIGS["MONGO_URI"], db_name=CONFIGS["MONGODB_NAME"])
+print(id(mongo_handler))
 
 
 class Clubs(str, Enum):
