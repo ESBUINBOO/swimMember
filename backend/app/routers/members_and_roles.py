@@ -4,19 +4,25 @@ import logging
 import base64
 from typing import Optional, List, Union
 from fastapi import FastAPI, Header, Query
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, EmailStr
 from fastapi import APIRouter
 from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
+from helper.read_config import CONFIGS
 from routers.clubs_and_groups import Clubs
 
 logger = logging.getLogger('ROUTER_MEMBERS_API_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 router = APIRouter()
-mongo_handler = MongoHandler()
+print(__name__)
+print(CONFIGS)
+mongo_handler = MongoHandler(uri=CONFIGS["MONGO_URI"], db_name=CONFIGS["MONGODB_NAME"])
+print(id(mongo_handler))
 
 
 class Roles(str, Enum):
@@ -38,7 +44,7 @@ class Member(BaseModel):
     # todo: EMailStr zum Laufen bekommen
     firstname: str
     lastname: str
-    birth: str
+    birth: str  # should be Datetime
     gender: str
     address: Address
     emails: List[str]
@@ -53,26 +59,31 @@ async def create_member(member: Member):
     creates a new member.
     :return: member object
     """
+    # todo: i think its better to create the user in Keycloak =),
+    #  or create member in DB and reference id to user attribute in KC Userss
     try:
-
-        _member = dict(member)
-        _member["address"] = dict(member.address)   # you need this, because the key "address" is a BaseModel Object
-                                                    # and pymongo cant insert it
-        doc_id = mongo_handler.insert_doc(col="members", obj=_member)
-        return {"message": str(doc_id)}
+        try:
+            member = jsonable_encoder(member)
+        except Exception as err:
+            return JSONResponse(status_code=400,
+                                content={"result": False, "message": "could not encode member", "detail": err})
+        doc_id = mongo_handler.insert_doc(col="members", query=member)
+        return JSONResponse(status_code=201, content={"result": True, "message": str(doc_id), "detail": None})
     except Exception as err:
         logger.error('Error in create_user() err: {}'.format(err))
-        return {"message": "something went wrong"}
+        return JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": err})
 
 
 @router.put('/api/v1/member/{member_id}', tags=["member"])
 async def update_member(member_id: str, member: Member):
-    _member = dict(member)
-    _member["address"] = dict(member.address)
-    update_query = {"$set": _member}
+    member = jsonable_encoder(member)
+    update_query = {"$set": member}
     _filter = {"_id": ObjectId(member_id)}
     modified_docs = mongo_handler.update_one_doc(col="members", _filter=_filter, query=update_query)
-    return {"message": "modified_count {}".format(modified_docs)}
+    return JSONResponse(status_code=200,
+                        content={"result": True,
+                                 "message": "",
+                                 "detail": "modified {} object(s)".format(modified_docs.modified_count)})
 
 
 @router.delete('/api/v1/member/{member_id}', tags=["member"])

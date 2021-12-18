@@ -14,15 +14,9 @@ import time
 import hashlib
 import re
 sys.path.append("app")
-from logging_handler.LoggingHandler import SystemLogHandler
-from helper.read_config import read_config
+
 
 logger = logging.getLogger('SM_DB_LOGGER')
-db_log_handler = SystemLogHandler()
-logger.addHandler(db_log_handler)
-logger.setLevel(db_log_handler.log_error_level)
-
-config = read_config()
 
 
 def singleton(class_):
@@ -37,23 +31,14 @@ def singleton(class_):
 
 @singleton
 class MongoHandler(object):
-    def __init__(self):
-        # self.logger = self.set_logger()
-        # self.config = self.get_db_config()
-        if config['containerized'] == 'False':
-            self.host = config['host'] + ':' + config['mongodb_start_port']
-            self.mongodb_name = config['mongodb_name']
-            self.mongodb_user = config['mongodb_user']
-            self.mongodb_pwd = config['mongodb_pwd']
-        else:
-            self.host = os.getenv('HOST') + ':' + str(os.getenv('MONGODB_START_PORT'))
-            self.mongodb_name = os.getenv('MONGODB_NAME')
-            self.mongodb_user = os.getenv('MONGODB_USER')
-            self.mongodb_pwd = os.getenv('MONGODB_PWD')
-        self.uri = "mongodb://" + self.mongodb_user + ":" + self.mongodb_pwd + "@" + self.host + "/" + \
-                   self.mongodb_name + "?retryWrites=true&w=majority"
-        self.client = pymongo.MongoClient(self.uri)
-        self.db = self.client[self.mongodb_name]
+    def __init__(self, uri, db_name):
+        try:
+            self.uri = uri
+            self.db_name = db_name
+            self.client = pymongo.MongoClient(self.uri)
+            self.db = self.client[self.db_name]
+        except Exception as err:
+            logger.fatal(err)
 
     @staticmethod
     def convert_mongodb_cursor_to_list(cursor):
@@ -72,17 +57,15 @@ class MongoHandler(object):
                 print(e)
         return result_list
 
-    def insert_doc(self, col, obj):
+    def insert_doc(self, col, query):
         """
         Insert a given document in a given collection
-        :param obj:
+        :param query:
         :param col:
         :return:
         """
         try:
-            date = datetime.datetime.now().replace(microsecond=0).isoformat()
-            obj.update({"created": date})
-            doc_id = self.db[col].insert_one(obj).inserted_id
+            doc_id = self.db[col].insert_one(query).inserted_id
             return doc_id
         except Exception as err:
             logger.error("Error in insert_doc(): {}".format(str(err)))
@@ -141,9 +124,7 @@ class MongoHandler(object):
         :return:
         """
         try:
-            date = datetime.datetime.now().replace(microsecond=0).isoformat()
-            query.update({"updated": date})
-            result = self.db[col].update_one(filter=_filter, update=query, upsert=False).modified_count
+            result = self.db[col].update_one(filter=_filter, update=query, upsert=False)
             return result
         except Exception as err:
             logger.error("Error in update_one_doc(): {}".format(str(err)))

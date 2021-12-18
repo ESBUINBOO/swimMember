@@ -3,7 +3,7 @@ version: "3.7"
 services:
   mongo:
     build: ./mongoDB
-    container_name: mongo_db_${STAGE}
+    container_name: mongo_db_${APP_ENVIRONMENT}
     environment:
       - MONGO_INITDB_DATABASE=${MONGODB_NAME}
       - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
@@ -13,9 +13,10 @@ services:
     ports:
       # - ${MONGODB_START_PORT}-${MONGODB_END_PORT}:27017-27019
       - 27017-27019:27017-27019
+  # todo:integrate keycloak
 
 volumes:
   mongodb-data:
     external:
-      name: mongodb-data-${STAGE}
+      name: mongodb-data-${APP_ENVIRONMENT}
 

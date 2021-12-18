@@ -8,37 +8,22 @@ logger = logging.getLogger('KEYCLOAK_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
-class KeycloakHandler:
+class KeycloakHandler(KeycloakOpenID):
     def __init__(self, server_url, client_id, realm_name, client_secret_key):
-        self.server_url = server_url
-        self.client_id = client_id
-        self.realm_name = realm_name
-        self.client_secret_key = client_secret_key
-        self.keycloak_openid = self.__open_id()
-        self.grant_type = ["client_credentials"]
+        super().__init__(server_url, client_id, realm_name, client_secret_key)
 
-    def __open_id(self):
-        __keycloak_openid = KeycloakOpenID(server_url=self.server_url + "/auth/",
-                                           client_id=self.client_id,
-                                           realm_name=self.realm_name,
-                                           client_secret_key=self.client_secret_key,
-                                           verify=True)
-        # config_well_known = self.keycloak_openid.well_know()
-        return __keycloak_openid
+    @staticmethod
+    def __decode_return_message(error_message):
+        logger.debug(error_message)
+        logger.debug(type(error_message))
+        pass
 
     def create_token(self, user_name, password):
-        if self.keycloak_openid is not None:
             try:
-                token = self.keycloak_openid.token(username=user_name,
-                                                   password=password,
-                                                   grant_type=self.grant_type)
-                logger.debug('Token for user {} is {}'.format(user_name, token))
+                token = self.token(username=user_name, password=password,)
                 return token
             except Exception as err:
                 logger.error('Error in create_token() err: {}'.format(err))
-        else:
-            logger.error('create_token() failed because keycloak_openid is None')
-            return None
 
     def refresh_token(self, token):
         try:
