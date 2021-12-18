@@ -11,7 +11,7 @@ from selenium_handler.selenium_handler import SeleniumHandler
 from bs4_handler.bs4_handler import beautify_results
 
 router = APIRouter()
-url = "https://dsvdaten.dsv.de/Modules/Results/Individual.aspx?Lang=de-DE"  # todo: in die config.ini schieben
+url = "https://dsvdaten.dsv.de/Modules/Results/Individual.aspx?Lang=de-DE"
 selenium_handler_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'selenium_handler'))
 if platform.system() == "Linux":
     selenium_driver = "drivers/chromedriver_lin"
