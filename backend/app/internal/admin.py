@@ -5,7 +5,6 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
 sys.path.append("app")
-from models.models import JsonResponseContent
 from helper.utils import check_file_type, file_is_processable
 from selenium_handler.selenium_handler import SeleniumHandler
 from bs4_handler.bs4_handler import beautify_results
@@ -59,7 +58,6 @@ async def upload_file(files: List[UploadFile] = File(...)):
                                                       "detail": "{} of {} could not be processed. Please check file(s) {}".format(
                                                           len(not_processable), len(files),
                                                           list(not_processable.keys()))})
-
     if not os.path.exists("files"):
         os.mkdir("files")
     for file in files:

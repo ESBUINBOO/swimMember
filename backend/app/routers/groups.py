@@ -10,67 +10,12 @@ from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
+from models.club import Clubs, Groups
 from helper.read_config import CONFIGS
 logger = logging.getLogger('ROUTER_MEMBERS_API_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 router = APIRouter()
-print(__name__)
-print(CONFIGS)
-mongo_handler = MongoHandler(uri=CONFIGS["MONGO_URI"], db_name=CONFIGS["MONGODB_NAME"])
-print(id(mongo_handler))
-
-
-class Clubs(str, Enum):
-    # todo: Enums aus config auslesen
-    # todo: contact_person sollte ObjectId sein
-    w98 = "Wassersportfreunde von 1989"
-    test = "test"
-    contact_person: Optional[str] = None
-
-
-class Groups(BaseModel):
-    group_name: str
-    club_name: Clubs
-    coaches: Optional[list] = None
-    members: Optional[list] = None
-
-
-@router.post('/api/v1/club/', tags=["clubs"])
-async def create_club(club: Clubs, contact_person: Optional[str] = None):
-    # todo: contact_person sollte ObjectId sein, nicht str
-    obj = {}
-    if contact_person:
-        obj["contact_person"] = ObjectId(contact_person)
-    obj["name"] = club.value
-    result = mongo_handler.insert_doc(col="clubs", obj=obj)
-    return {"message": str(result)}
-
-
-@router.delete('/api/v1/club/{club_id}', tags=["clubs"])
-async def delete_club(club_id: str):
-    result = mongo_handler.delete_doc(col="clubs", query={"_id": ObjectId(club_id)})
-    return {"message": result}
-
-
-@router.get('/api/v1/club/{club_id}', tags=["clubs"])
-async def get_club_by_club_id(club_id: str):
-    result = mongo_handler.find_one_doc(col="clubs", query={"_id": ObjectId(club_id)})
-    return {"message": result}
-
-
-@router.get('/api/v1/club/', tags=["clubs"])
-async def get_all_clubs():
-    clubs = mongo_handler.find_many_docs(col="clubs", query={})
-    return {"message": clubs}
-
-
-@router.put('/api/v1/club/{club_id}', tags=["clubs"])
-async def update_club(club_id: str, club: Clubs, contact_person: Clubs.contact_person):
-    update_query = {"$set": dict(club)}
-    modified_docs = mongo_handler.update_one_doc(col="clubs", _filter={"_id": ObjectId(club_id)}, query=update_query)
-    return {"message": modified_docs}
-
 
 # groups
 @router.post('/api/v1/group/', tags=["groups"])

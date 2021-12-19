@@ -10,8 +10,8 @@ from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
-from routers.clubs_and_groups import Clubs, Groups
-from routers.members_and_roles import Member
+from models.club import Clubs, Groups
+from models.member import Member
 
 logger = logging.getLogger('ROUTER_MEMBERS_API_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

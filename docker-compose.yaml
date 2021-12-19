@@ -14,9 +14,35 @@ services:
       # - ${MONGODB_START_PORT}-${MONGODB_END_PORT}:27017-27019
       - 27017-27019:27017-27019
   # todo:integrate keycloak
+  postgres:
+    image: postgres:14.1
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+  keycloak:
+    image: quay.io/keycloak/keycloak:16.0.0
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_SCHEMA: public
+      DB_PASSWORD: password
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: Pa55w0rd
+    ports:
+      - '5020:8080'
+    depends_on:
+      - postgres
+
 
 volumes:
   mongodb-data:
     external:
       name: mongodb-data-${APP_ENVIRONMENT}
+  postgres_data:
+    driver: local
 

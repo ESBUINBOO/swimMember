@@ -1,7 +1,9 @@
 import logging
 import os
+import json
 from keycloak import KeycloakOpenID
 from keycloak import KeycloakAdmin
+from keycloak.exceptions import KeycloakError
 import sys
 
 logger = logging.getLogger('KEYCLOAK_LOGGER')
@@ -19,15 +21,15 @@ class KeycloakHandler(KeycloakOpenID):
         pass
 
     def create_token(self, user_name, password):
-            try:
-                token = self.token(username=user_name, password=password,)
-                return token
-            except Exception as err:
-                logger.error('Error in create_token() err: {}'.format(err))
-
-    def refresh_token(self, token):
         try:
-            _refreshed_token = self.keycloak_openid.refresh_token(token['refresh_token'])
+            token = self.token(username=user_name, password=password,)
+            return token
+        except Exception as err:
+            logger.error('Error in create_token() err: {}'.format(err))
+
+    def refresh_token_(self, refresh_token):
+        try:
+            _refreshed_token = self.refresh_token(refresh_token=refresh_token)
             logger.debug('_refreshed_token: {}'.format(_refreshed_token))
             return _refreshed_token
         except Exception as err:
@@ -36,9 +38,9 @@ class KeycloakHandler(KeycloakOpenID):
 
     def introspect_access_token(self, access_token):
         try:
-            token_info = self.keycloak_openid.introspect(access_token)
+            token_info = self.introspect(access_token)
             logger.debug('token_info: {}'.format(token_info))
-            if self.keycloak_openid.introspect(access_token)['active']:
+            if self.introspect(access_token)['active']:
                 return True
             else:
                 return False
@@ -48,7 +50,7 @@ class KeycloakHandler(KeycloakOpenID):
 
     def get_user_info(self, access_token):
         try:
-            user_info = self.keycloak_openid.userinfo(token=access_token)
+            user_info = self.userinfo(token=access_token)
             if type(user_info) is dict:
                 return user_info
             else:
@@ -74,8 +76,8 @@ class KeycloakHandler(KeycloakOpenID):
             _refreshed_token = None
         return _result, _refreshed_token
 
-    def logout(self, token):
-        self.keycloak_openid.logout(token['refresh_token'])
+    def logout(self, refresh_token):
+        self.logout(refresh_token=refresh_token)
 
 
 class KeycloakAdminHandler(KeycloakAdmin):
@@ -84,23 +86,74 @@ class KeycloakAdminHandler(KeycloakAdmin):
                          client_id='admin-cli',
                          realm_name=realm_name,
                          username='realm_admin_user',
-                         password=password)
+                         password=password,
+                         auto_refresh_token=["get", "put", "post", "delete"])
 
-    def get_user_id_(self, user_name):
+    @staticmethod
+    def __decode_error_message(error_object: KeycloakError) -> tuple:
+        """
+        this method will cast the KeycloakError object value to a string
+        Args:
+            error_object:
+
+        Returns:
+
+        """
         try:
-            logger.debug('get_user_id() with user_name {}'.format(user_name))
-            return self.get_user_id(username=user_name)
+            if isinstance(error_object, KeycloakError):
+                error_response_code = error_object.response_code
+                error_message = json.loads(error_object.error_message.decode("utf-8"))
+                # todo: this can be stupid, maybe there are more interesting information,
+                #  not just the 1st element, need to be tested
+                message = list(error_message.values())[0]
+                return error_response_code, message
+            else:
+                logger.error("no class of KeycloakError")
+                raise Exception("no class of KeycloakError")
         except Exception as err:
-            logger.error('get_user_id() failed! err: {}'.format(err))
-            return False
+            logger.error(err)
+
+    def create_user_(self, payload, exist_ok=False):
+        try:
+            return self.create_user(payload=payload, exist_ok=exist_ok)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def delete_user_(self, user_id):
+        try:
+            return self.delete_user(user_id=user_id)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def delete_client_role_(self, client_role_id, role_name):
+        try:
+            return self.delete_client_role(client_role_id=client_role_id, role_name=role_name)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def create_client_role_(self, client_role_id, payload, skip_exists=False):
+        try:
+            return self.create_client_role(client_role_id=client_role_id, payload=payload, skip_exists=skip_exists)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def get_client_role_(self, client_id, role_name):
+        try:
+            return self.get_client_role(client_id=client_id, role_name=role_name)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def get_user_id_(self, username):
+        try:
+            return self.get_user_id(username=username)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
 
     def get_user_(self, user_id):
         try:
-            logger.debug('get_user() with user_id {}'.format(user_id))
             return self.get_user(user_id=user_id)
-        except Exception as err:
-            logger.error('get_user() failed! err: {}'.format(err))
-            return False
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
 
     def get_user_groups_(self, user_id):
         try:
@@ -125,21 +178,16 @@ class KeycloakAdminHandler(KeycloakAdmin):
                     attributes.update({k: v})
         return attributes
 
-    def search_user(self, query):
-        """
-        wrapper function to search a user in keycloak
-        if the query is bad, like 1 char, the search runs pretty long, so we need to time it out!
-        :param :query Query as a dictionary
-        :return found user list
-        :rtype list
-        :return False if query is not a dict
-        """
-        # todo: TimeOut handling! [Dominic, Marcel]
+    def get_users_(self, query):
+        query["limit"] = 10
         # see https://erogol.com/timeout-function-takes-long-finish-python/
-        if type(query) == dict:
-            return self.get_users(query=query)
+        if isinstance(query, dict):
+            try:
+                return self.get_users(query=query)
+            except KeycloakError as err:
+                return self.__decode_error_message(error_object=err)
         else:
-            return False
+            return 400, "bad request"
 
     def get_group_id(self, group_name):
         groups = self.get_groups()
@@ -162,6 +210,11 @@ class KeycloakAdminHandler(KeycloakAdmin):
         except Exception as err:
             logger.error('delete_user_from_group failed! err: {}'.format(err))
             return False
+
+    def create_realm_role_(self, payload, skip_exists=False):
+        result = self.create_realm_role(payload=payload, skip_exists=skip_exists)
+        return result
+
 
 
 
