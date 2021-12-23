@@ -1,19 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict
 from enum import Enum
-
-
-class JsonResponseContent(BaseModel):
-    result: bool
-    message: str
-    detail: str
-
-
-class Roles(BaseModel):
-    name: str
-    description: Optional[str]
-    clientRole: bool
-    attributes: Optional[Dict]
 
 
 class Address(BaseModel):
@@ -30,7 +17,7 @@ class Member(BaseModel):
     birth: str  # should be Datetime
     gender: str
     address: Address
-    emails: List[str]
+    emails: List[EmailStr]  # List of E-Mail
     mobile_phone_number: str
     phone_numbers: Optional[List[str]] = None
     member_since: Optional[str] = None

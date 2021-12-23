@@ -6,6 +6,8 @@ from typing import Optional, List, Union
 from fastapi import FastAPI, Header, Query
 from pydantic import BaseModel, EmailStr
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
@@ -43,25 +45,31 @@ async def create_swimmer(swimmer: Swimmer):
     :return: member object
     """
     try:
-
-        _swimmer = dict(swimmer)
-        _swimmer["address"] = dict(swimmer.address)   # you need this, because the key "address" is a BaseModel Object
-                                                    # and pymongo cant insert it
-        _swimmer["group"] = dict(swimmer.group)
+        # todo: create Keycloak User and add doc id to attributes
+        _swimmer = jsonable_encoder(swimmer)
+        logger.debug("_swimmer: {}".format(_swimmer))
         doc_id = mongo_handler.insert_doc(col="members", obj=_swimmer)
-        return {"message": str(doc_id)}
+        return JSONResponse(status_code=201, content={"result": True, "message": str(doc_id), "detail": None})
     except Exception as err:
         logger.error('Error in create_user() err: {}'.format(err))
-        return {"message": "something went wrong"}
+        JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": err})
 
 
 @router.put('/api/v1/member/swimmer/{swimmer_id}', tags=["swimmer"])
 async def update_swimmer(swimmer_id: str, swimmer: Swimmer):
-    _swimmer = dict(swimmer)
-    _swimmer["address"] = dict(swimmer.address)
+    _swimmer = jsonable_encoder(swimmer)
     update_query = {"$set": _swimmer}
     _filter = {"_id": ObjectId(swimmer_id)}
-    modified_docs = mongo_handler.update_one_doc(col="members", _filter=_filter, query=update_query)
-    return {"message": "modified_count {}".format(modified_docs)}
+    modified_docs = mongo_handler.update_one_doc(col="members", _filter=_filter, query=update_query).modified_count
+    if modified_docs == 0:
+        return JSONResponse(status_code=404,
+                            content={"result": True,
+                                     "message": "Not Found",
+                                     "detail": "Swimmer with id {} not found".format(swimmer_id)})
+
+    return JSONResponse(status_code=200,
+                        content={"result": True,
+                                 "message": "updated swimmer with id {}".format(swimmer_id),
+                                 "detail": "modified_count {}".format(modified_docs)})
 
 

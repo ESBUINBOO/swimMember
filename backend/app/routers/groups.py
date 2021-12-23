@@ -2,80 +2,72 @@ import os
 import sys
 import logging
 import base64
+import traceback
 from typing import Optional, List, Union
 from fastapi import FastAPI, Header, Query
 from pydantic import BaseModel, EmailStr
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
-from models.club import Clubs, Groups
+from keycloak_handler.KeycloakHandler import KeycloakHandler, KeycloakAdminHandler
+from models.club import Clubs
+from models.group import Groups
 from helper.read_config import CONFIGS
 logger = logging.getLogger('ROUTER_MEMBERS_API_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 router = APIRouter()
+keycloak_admin_handler = KeycloakAdminHandler(server_url=CONFIGS["KEYCLOAK_SERVER"],
+                                              realm_name=CONFIGS["REALM"],
+                                              password=CONFIGS["KC_ADMIN_PW"])
 
-# groups
+
 @router.post('/api/v1/group/', tags=["groups"])
-async def create_group(group: Groups):
-    obj = {}
-    if group.coaches:
-        obj["coaches"] = [i for i in group.coaches]
-    if group.members:
-        obj["members"] = [ObjectId(i) for i in group.coaches]
-    obj["group_name"] = group.group_name
-    result = mongo_handler.insert_doc(col="groups", obj=obj)
-    return {"message": str(result)}
+async def create_group(group: Groups, parent_id: Optional[str] = None):
+    try:
+        kc_result = keycloak_admin_handler.create_group_(payload=jsonable_encoder(group), parent=parent_id, skip_exists=False)
+        if isinstance(kc_result, tuple):
+            return JSONResponse(status_code=kc_result[0],
+                                content={"result": False, "message": "keycloak error", "detail": kc_result[1]})
+        return JSONResponse(status_code=201,
+                            content={"result": True,
+                                     "message": "group {} successfully created".format(group.name),
+                                     "detail": None})
+    except Exception as err:
+        logger.debug(traceback.print_exc())
+        logger.error('Error in create_group() err: {}'.format(err))
+        return JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": str(err)})
 
 
 @router.get('/api/v1/group/', tags=["groups"])
 async def get_all_groups():
-    clubs = mongo_handler.find_many_docs(col="groups", query={})
-    return {"message": clubs}
+    pass
 
 
 @router.get('/api/v1/group/{group_id}', tags=["groups"])
-async def get_all_groups(group_id: str):
-    groups = mongo_handler.find_one_doc(col="groups", query={"_id": ObjectId(group_id)})
-    return {"message": groups}
+async def get_group_by_id(group_id: str):
+    pass
 
 
 @router.delete('/api/v1/group/{group_id}', tags=["groups"])
 async def delete_group(group_id: str):
-    result = mongo_handler.delete_doc(col="groups", query={"_id": ObjectId(group_id)})
-    return {"message": result}
+    pass
 
 
-@router.put('/api/v1/group/{group_id}', tags=["groups"])
-async def update_group(group_id: str, members: Optional[list], coaches: Optional[list], insert: bool):
-    # todo: concat die queries zu einem
-    # todo: die if anweisungen verschönern
-    # Array Operators: https://docs.mongodb.com/manual/reference/operator/update-array/
-    _filter = {"_id": ObjectId(group_id)}
-    # test_update_query = {"$push": {"members": {"$each": []}}}
-    # test = {"$addtoSet": {"members": {"$each": []}}}
-    update_query = {}
-    modified_docs = 0
-    if insert:
-        array_update_operator = "$addToSet"  # "$push"
-        array_update_operator_helper = "$each"
-    else:
-        array_update_operator = "$pull"
-        array_update_operator_helper = "$in"
-    if members:
-        field = "members"
-        sliced_query = {field: {array_update_operator_helper: [ObjectId(i) for i in members]}}
+@router.patch('/api/v1/group/{group_id}', tags=["groups"])
+async def update_group(group_id: str):
+    pass
 
-        update_query[array_update_operator] = sliced_query
-        print("update_query: ", update_query)
-        modified_docs = mongo_handler.update_one_doc(col="groups", _filter=_filter, query=update_query)
-    if coaches:
-        field = "coaches"
-        sliced_query = {field: {array_update_operator_helper: [ObjectId(i) for i in coaches]}}
-        update_query[array_update_operator] = sliced_query
-        print("update_query: ", update_query)
-        modified_docs = mongo_handler.update_one_doc(col="groups", _filter=_filter, query=update_query)
 
-    return {"message": "modified_count {}".format(modified_docs)}
+@router.patch('/api/v1/group/{group_id}/{member_id}', tags=["groups"])
+async def add_member_to_group(group_id: str, member_id: str):
+    pass
+
+
+@router.delete('/api/v1/group/{group_id}/{member_id}', tags=["groups"])
+async def delete_member_from_group(group_id: str, member_id: str):
+    pass

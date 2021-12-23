@@ -143,6 +143,18 @@ class KeycloakAdminHandler(KeycloakAdmin):
         except KeycloakError as err:
             return self.__decode_error_message(error_object=err)
 
+    def assign_client_role_(self, user_id, client_id, roles):
+        try:
+            return self.assign_client_role(user_id=user_id, client_id=client_id, roles=roles)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def create_group_(self, payload, parent=None, skip_exists=False):
+        try:
+            return self.create_group(payload=payload, parent=parent, skip_exists=skip_exists)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
     def get_user_id_(self, username):
         try:
             return self.get_user_id(username=username)

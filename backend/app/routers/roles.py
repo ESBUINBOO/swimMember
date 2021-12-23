@@ -12,7 +12,8 @@ from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
-from models.member import Member, Roles, Address
+from models.member import Member, Address
+from models.role import Role
 from keycloak_handler.KeycloakHandler import KeycloakHandler, KeycloakAdminHandler
 from keycloak.exceptions import KeycloakError
 from helper.read_config import CONFIGS
@@ -66,7 +67,7 @@ async def delete_role(role_name: str):
 
 
 @router.post('/api/v1/role/', tags=["role"])
-async def create_role(role: Roles):
+async def create_role(role: Role):
     """
     creates a new role in keycloak realm
     \f

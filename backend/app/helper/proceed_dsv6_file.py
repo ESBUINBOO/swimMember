@@ -19,14 +19,15 @@ logger.info("{} - {}".format(__name__, id(mongo_handler)))
 dsv_handler = Dsv6FileHandler()
 dsv_handler.update()
 
-for dsv_file in dsv_handler.files_to_proceed.copy():
+
+def proceed_dsv6_file(dsv_file: str, obj_id=None):
     # todo: das müsste ein update auf ein meetings Document sein, da das Meeting über die GUI angelegt wird
     #  um die Meldungen machen zu können
     logger.info("processing dsv_file {}".format(dsv_file))
     file_hash = get_md5sum_to_file(dsv_file)
     found_doc = mongo_handler.find_one_doc(col="meetings", query={"file_hash": file_hash})
     if found_doc is None:
-        results = dsv_handler.analyse_dsv6_file(file_to_proceed=dsv_file)
+        results = dsv_handler.analyze_dsv6_file_type(file_to_proceed=dsv_file)
         print(results)
         if list(results.keys())[0] is dsv_handler.return_def[0]:
             print("its a meeting definition")
@@ -57,16 +58,25 @@ for dsv_file in dsv_handler.files_to_proceed.copy():
                     # print("k: {} - v: {}".format(k, v))
                     meeting[k] = asdict(v)
             obj = {"meeting_definition": meeting, "file_hash": [file_hash]}
-            doc_id = mongo_handler.insert_doc(col="meetings", obj=obj)
-            print(doc_id)
+            doc_id = mongo_handler.insert_doc(col="meetings", query=obj)
+            return doc_id
         elif list(results.keys())[0] is dsv_handler.return_def[1]:
             print("its a meeting result")
-            meta = results["meeting_results"]["meta"][0]
+            if obj_id is None:
+                return False, "No mongo id given"
             results["meeting_results"].pop("meta", None)
             query = {"$set": {"results": results}, "$addToSet": {"file_hash": file_hash}}
+            # _filter = {'meeting_definition.Veranstaltung.veranstaltungs_beschreibung': meta["veranstaltungs_beschreibung"]}
+            _filter = {"_id": ObjectId(obj_id)}
+            logger.debug(query)
+            logger.debug(_filter)
             doc_id = mongo_handler.update_one_doc(col="meetings",
-                                                  _filter={'meeting_definition.Veranstaltung.veranstaltungs_beschreibung': meta["veranstaltungs_beschreibung"]},
+                                                  _filter=_filter,
                                                   query=query)
-            print(doc_id)
+            print(doc_id.modified_count)
+            if doc_id.modified_count == 0:
+                logger.info("No competition found for this result file")
+            return doc_id
     else:
-        logger.info("File already processed with hash {}! Skipping this one!".format(file_hash))
+        logger.info("File already processed with hash {}!".format(file_hash))
+        return False, "File already processed with hash {}!".format(file_hash)

@@ -17,7 +17,7 @@ def check_file_type(file: bytes) -> tuple:
 
 def file_is_processable(file_type: str) -> bool:
     # this should be in settings / config
-    allowed_file_types = ["png", "jpg", "jpeg", "tif", "tiff", "pdf", "dsv6"]
+    allowed_file_types = ["pdf", "dsv6", "plain"]
     rc = False
     if file_type in allowed_file_types:
         rc = True

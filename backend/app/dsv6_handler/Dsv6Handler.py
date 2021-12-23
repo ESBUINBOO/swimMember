@@ -35,7 +35,7 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
         self.base_dir = os.path.abspath(os.path.dirname(__file__))
         self.file_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'files'))
         self.file_done_dir = os.path.join(self.file_dir, "done")
-        self.club_names = ["W98 Hannover"]
+        self.club_names = ["W98 Hannover"]  # todo: this must be in config
         self.return_def = ["meeting_definition", "meeting_results"]
         self.files_to_proceed = []
         self.file_lines = []
@@ -273,7 +273,8 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                         dc_meldeschluss = Meldeschluss(**mapped_data)
                         meeting_definition["Meldeschluss"] = dc_meldeschluss
                     else:
-                        print("invalid date format!")
+                        logger.error("invalid date format!")
+                        # todo: should it break here?
                 elif line_values[0][0] == "BANKVERBINDUNG:":
                     mapped_data = self._Dsv6DefinitionClassMapper__bankverbindung_mapper(line=line[16:])
                     dc_bankverbindung = Bankverbindung(**mapped_data)
@@ -290,7 +291,8 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                         # dc_nachweis.bahnlaenge = Bahnlaenge(mapped_data["bahnlaenge"])
                         meeting_definition["Nachweis"] = dc_nachweis
                     else:
-                        print("invalid date format!")
+                        logger.error("invalid date format!")
+                        # todo: should it break here?
                 elif line_values[0][0] == "ABSCHNITT:":
                     mapped_data = self._Dsv6DefinitionClassMapper__abschnitt_mapper(line=line[11:])
                     if self.validate_date(date_text=mapped_data["abschnitts_datum"]) and \
@@ -300,7 +302,8 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                         dc_abschnitt = Abschnitt(**mapped_data)
                         sections.append(dc_abschnitt)
                     else:
-                        print("invalid date format!")
+                        logger.error("invalid date format!")
+                        # todo: should it break here?
                 elif line_values[0][0] == "WETTKAMPF:":
                     mapped_data = self._Dsv6BaseClassMapper__wettkampf_mapper(line=line[11:])
                     dc_wettkampf = Wettkampf(**mapped_data)
@@ -331,7 +334,7 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
         meeting_definition["Pflichtzeiten"] = mandatory_times
         return {self.return_def[0]: meeting_definition}
 
-    def analyse_dsv6_file(self, file_to_proceed):
+    def analyze_dsv6_file_type(self, file_to_proceed):
         """
         this method takes a dsv6 file and checks, which format it has und chooses the correct proceed method. It
         returns a dict like {"format_name": data}
