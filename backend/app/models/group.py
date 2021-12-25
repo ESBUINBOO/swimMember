@@ -12,7 +12,7 @@ class Group(BaseModel):
     access: Optional[Dict]
     clientRoles: Optional[Dict]
     realmRoles: Optional[List[str]]
-    path: Optional[str]
+    # path: Optional[str]
     name: Optional[str]
     # subGroups: Optional[List[Group]]
 

@@ -10,7 +10,7 @@ from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
-from routers import members, clubs, swimmers, meetings, roles, groups
+from routers import members, clubs, swimmers, meetings, roles, groups, experimental
 from internal import admin
 
 logger = logging.getLogger('FAST_API_LOGGER')
@@ -23,6 +23,7 @@ app.include_router(roles.router)
 app.include_router(groups.router)
 app.include_router(swimmers.router)
 app.include_router(meetings.router)
+app.include_router(experimental.router)
 app.include_router(admin.router)
 
 

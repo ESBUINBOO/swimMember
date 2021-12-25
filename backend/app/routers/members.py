@@ -12,7 +12,7 @@ from bson import ObjectId
 from enum import Enum
 sys.path.append("app")
 from mongo_handler.MongoHandler import MongoHandler
-from models.member import Member, Address
+from models.member import Member, Address, Swimmer
 from keycloak_handler.KeycloakHandler import KeycloakHandler, KeycloakAdminHandler
 from keycloak.exceptions import KeycloakError
 from helper.read_config import CONFIGS
@@ -21,8 +21,6 @@ logger = logging.getLogger('ROUTER_MEMBERS_API_LOGGER')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 router = APIRouter()
-print(__name__)
-print(CONFIGS)
 mongo_handler = MongoHandler(uri=CONFIGS["MONGO_URI"], db_name=CONFIGS["MONGODB_NAME"])
 keycloak_handler = KeycloakHandler(server_url=CONFIGS["KEYCLOAK_SERVER"],
                                    client_id=CONFIGS["CLIENT_ID"],
@@ -31,9 +29,6 @@ keycloak_handler = KeycloakHandler(server_url=CONFIGS["KEYCLOAK_SERVER"],
 keycloak_admin_handler = KeycloakAdminHandler(server_url=CONFIGS["KEYCLOAK_SERVER"],
                                               realm_name=CONFIGS["REALM"],
                                               password=CONFIGS["KC_ADMIN_PW"])
-print(id(mongo_handler))
-
-# todo: those apis are nested with keylcoak. If u create a role here, we need to do it in keycloak also
 
 
 @router.post('/api/v1/member/', tags=["member"])
@@ -44,6 +39,7 @@ async def create_member(member: Member):
     """
     try:
         # todo: member information should be encrypted with a club / realm key
+        # todo: how to avoid creating a member as swimmer here?
         # check if role exists
         role_exists = keycloak_admin_handler.get_client_role_(
             client_id=keycloak_admin_handler.get_client_id(client_name="sm"),
@@ -51,20 +47,20 @@ async def create_member(member: Member):
         if isinstance(role_exists, tuple):  # index 0 = status code, 1 = message
             return JSONResponse(status_code=role_exists[0], content={"result": False, "message": "keycloak error", "detail": role_exists[1]})
         doc_id = mongo_handler.insert_doc(col="members", query=jsonable_encoder(member))
-        logger.debug("role_exists: {}".format(role_exists))
         client_id = keycloak_admin_handler.get_client_id(client_name="sm")
-        keycloak_user = {"attributes":
-                             {"mongo_id": str(doc_id), "mobile_phone_number": member.mobile_phone_number},
-                         "credentials": [{"type": "Password", "value": "test", "temporary": True}],
-                         "username": member.firstname + "." + member.lastname,
-                         "firstName": member.firstname,
-                         "lastName": member.lastname,
-                         # this is buggy -> Keycloak Failure
-                         # see https://stackoverflow.com/questions/49818453/client-roles-havent-assigned-during-creating-new-user-in-keycloak
-                         # "clientRoles": {client_id: [role_exists]},
-                         # "clientRoles": {client_id: [role_exists["id"]]},
-                         "enabled": False,
-                         "requiredActions": ["UPDATE_PASSWORD"]}
+        keycloak_user = {"attributes": {
+            "mongo_id": str(doc_id),
+            "mobile_phone_number": jsonable_encoder(member.phone_numbers["mobile"])},
+            "credentials": [{"type": "Password", "value": "test", "temporary": True}],
+            "username": member.firstname + "." + member.lastname,
+            "firstName": member.firstname,
+            "lastName": member.lastname,
+             # this is buggy -> Keycloak Failure
+             # see https://stackoverflow.com/questions/49818453/client-roles-havent-assigned-during-creating-new-user-in-keycloak
+             # "clientRoles": {client_id: [role_exists]},
+             # "clientRoles": {client_id: [role_exists["id"]]},
+             "enabled": False,
+             "requiredActions": ["UPDATE_PASSWORD"]}
         logger.debug(keycloak_user)
         kc_result = keycloak_admin_handler.create_user_(payload=keycloak_user, exist_ok=False)
         if isinstance(kc_result, tuple):  # index 0 = status code, 1 = message
@@ -149,20 +145,41 @@ async def get_member_by_user_name(user_name: str, details: bool = False):
 @router.get('/api/v1/member/', tags=["member"])
 async def get_all_members(lastname: Optional[str] = Query(None),
                           firstname: Optional[str] = Query(None),
+                          role: Optional[str] = Query(None),
+                          group: Optional[str] = Query(None),
                           details: bool = False):
     """
     mongoDB find limit default = 50
     :return:
     """
+    # todo: query doesnt work in combination with role and group
     kc_query = {}
     if lastname:
         kc_query["lastName"] = lastname
     if firstname:
-        kc_query["lastName"] = lastname
-    kc_result = keycloak_admin_handler.get_users_(query=kc_query)
-    if isinstance(kc_result, tuple):  # index 0 = status code, 1 = message
-        return JSONResponse(status_code=kc_result[0],
-                            content={"result": False, "message": "keycloak error", "detail": kc_result[1]})
+        kc_query["firstName"] = firstname
+    if role:
+        client_id = keycloak_admin_handler.get_client_id(client_name="sm")
+        kc_result = keycloak_admin_handler.get_client_role_members_(client_id=client_id, role_name=role, query=kc_query)
+        if isinstance(kc_result, tuple):  # index 0 = status code, 1 = message
+            return JSONResponse(status_code=kc_result[0],
+                                content={"result": False, "message": "keycloak error", "detail": kc_result[1]})
+    if group:
+        group_id = keycloak_admin_handler.get_group_by_path_(path="/" + group)
+        if group_id is None:
+            return JSONResponse(status_code=404,
+                                content={"result": False,
+                                         "message": "keycloak error",
+                                         "detail": "could not find group"})
+        kc_result = keycloak_admin_handler.get_group_members_(group_id=group_id["id"], query=kc_query)
+        if isinstance(kc_result, tuple):  # index 0 = status code, 1 = message
+            return JSONResponse(status_code=kc_result[0],
+                                content={"result": False, "message": "keycloak error", "detail": kc_result[1]})
+    else:
+        kc_result = keycloak_admin_handler.get_users_(query=kc_query)
+        if isinstance(kc_result, tuple):  # index 0 = status code, 1 = message
+            return JSONResponse(status_code=kc_result[0],
+                                content={"result": False, "message": "keycloak error", "detail": kc_result[1]})
     detail = None
     if details:
         # todo: think about data structure. Maybe its wise to put the mongo docs into details as list.

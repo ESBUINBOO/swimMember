@@ -143,6 +143,12 @@ class KeycloakAdminHandler(KeycloakAdmin):
         except KeycloakError as err:
             return self.__decode_error_message(error_object=err)
 
+    def get_client_role_members_(self, client_id, role_name, **query):
+        try:
+            return self.get_client_role_members(client_id=client_id, role_name=role_name, **query)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
     def assign_client_role_(self, user_id, client_id, roles):
         try:
             return self.assign_client_role(user_id=user_id, client_id=client_id, roles=roles)
@@ -152,6 +158,51 @@ class KeycloakAdminHandler(KeycloakAdmin):
     def create_group_(self, payload, parent=None, skip_exists=False):
         try:
             return self.create_group(payload=payload, parent=parent, skip_exists=skip_exists)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def get_groups_(self):
+        try:
+            return self.get_groups()
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def get_group_(self, group_id):
+        try:
+            return self.get_group(group_id=group_id)
+        except KeycloakError as err:
+            logger.debug(1)
+            return self.__decode_error_message(error_object=err)
+
+    def get_group_by_path_(self, path, search_in_subgroups=False):
+        try:
+            return self.get_group_by_path(path=path, search_in_subgroups=search_in_subgroups)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def delete_group_(self, group_id):
+        try:
+            return self.delete_group(group_id=group_id)
+        except KeycloakError as err:
+            logger.debug(1)
+            return self.__decode_error_message(error_object=err)
+
+    def get_group_members_(self, group_id, **query):
+        try:
+            return self.get_group_members(group_id=group_id, **query)
+        except KeycloakError as err:
+            logger.debug(1)
+            return self.__decode_error_message(error_object=err)
+
+    def group_user_add_(self, user_id, group_id):
+        try:
+            return self.group_user_add(user_id=user_id, group_id=group_id)
+        except KeycloakError as err:
+            return self.__decode_error_message(error_object=err)
+
+    def group_user_remove_(self, user_id, group_id):
+        try:
+            return self.group_user_remove(user_id=user_id, group_id=group_id)
         except KeycloakError as err:
             return self.__decode_error_message(error_object=err)
 
@@ -167,29 +218,6 @@ class KeycloakAdminHandler(KeycloakAdmin):
         except KeycloakError as err:
             return self.__decode_error_message(error_object=err)
 
-    def get_user_groups_(self, user_id):
-        try:
-            logger.debug('get_user_groups() with user_id {}'.format(user_id))
-            return self.get_user_groups(user_id=user_id)
-        except Exception as err:
-            logger.error('get_user_groups() failed! err: {}'.format(err))
-            return False
-
-    def get_group_(self, group_id):
-        return self.get_group(group_id=group_id)
-
-    def get_group_attributes_(self, user_name):
-        attributes = {}
-        for group in self.get_user_groups_(user_id=self.get_user_id_(user_name=user_name)):
-            for k, v in self.get_group(group_id=group['id'])['attributes'].items():
-                if k not in attributes:
-                    if 'True' in v:
-                        v = True
-                    elif 'False' in v:
-                        v = False
-                    attributes.update({k: v})
-        return attributes
-
     def get_users_(self, query):
         query["limit"] = 10
         # see https://erogol.com/timeout-function-takes-long-finish-python/
@@ -200,34 +228,3 @@ class KeycloakAdminHandler(KeycloakAdmin):
                 return self.__decode_error_message(error_object=err)
         else:
             return 400, "bad request"
-
-    def get_group_id(self, group_name):
-        groups = self.get_groups()
-        for group in groups:
-            if group['name'] == group_name:
-                return group['id']
-
-    def insert_user_to_group(self, user_id, group_id):
-        try:
-            self.group_user_add(user_id=user_id, group_id=group_id)
-            return True
-        except Exception as err:
-            logger.error('insert_user_to_group() failed! err: {}'.format(err))
-            return False
-
-    def delete_user_from_group_(self, user_id, group_id):
-        try:
-            self.delete_user_from_group(user_id=user_id, group_id=group_id)
-            return True
-        except Exception as err:
-            logger.error('delete_user_from_group failed! err: {}'.format(err))
-            return False
-
-    def create_realm_role_(self, payload, skip_exists=False):
-        result = self.create_realm_role(payload=payload, skip_exists=skip_exists)
-        return result
-
-
-
-
-
