@@ -80,54 +80,32 @@ class MeldegeldTyp(str, Enum):
 
 
 @dataclass
-class Address(pydantic.BaseModel):
+class Address:
     """
     required fields:
     """
-    __slots__ = ["strasse", "plz", "ort", "land"]
+    # __slots__ = ["strasse", "plz", "ort", "land"]
     strasse: str
     plz: str
     ort: str
     land: str
 
-    # @pydantic.validator('strasse', pre=True, always=True, check_fields=False)
-    # def strasse(cls, v):
-    #     return v or ""
-    #
-    # @pydantic.validator('plz', pre=True, always=True, check_fields=False)
-    # def plz(cls, v):
-    #     return v or ""
-    #
-    # @pydantic.validator('ort', pre=True, always=True, check_fields=False)
-    # def ort(cls, v):
-    #     return v or ""
-    #
-    # @pydantic.validator('land', pre=True, always=True, check_fields=False)
-    # def land(cls, v):
-    #     return v or ""
-
 
 @dataclass
-class Contact(pydantic.BaseModel):
+class Contact:
     """
     required fields: email
     """
-    __slots__ = ["telefon", "fax", "email"]
+    # __slots__ = ["telefon", "fax", "email"]
     telefon: Optional[str]
     fax: Optional[str]
     email: str
 
-    # @pydantic.validator('telefon', pre=True, always=False, check_fields=False)
-    # def telefon(cls, v):
-    #     return v or ""
-    #
-    # @pydantic.validator('fax', pre=True, always=False, check_fields=False)
-    # def fax(cls, v):
-    #     return v or ""
-    #
-    # @pydantic.validator('email', pre=True, always=False, check_fields=False)
-    # def email(cls, v):
-    #     return v or ""
+
+@dataclass
+class Test(Address, Contact):
+    __slots__ = ["telefon", "fax", "email", "strasse", "plz", "ort", "land"]
+    test: str
 
 
 @dataclass
@@ -164,14 +142,12 @@ class Veranstaltung:
 
 
 @dataclass
-class VeranstaltungsOrt:
+class VeranstaltungsOrt(Address, Contact):
     """
     required fields: name_schwimmhalle, ort, land
     """
-    #__slots__ = ["strasse", "plz", "ort", "land", "telefon", "fax", "email"]
+    __slots__ = ["strasse", "plz", "ort", "land", "telefon", "fax", "email", "name_schwimmhalle"]
     name_schwimmhalle: str
-    contact: Contact
-    address: Address
 
 
 @dataclass
@@ -205,23 +181,19 @@ class Veranstalter:
 
 
 @dataclass
-class Ausrichter:
-    __slots__ = ["name_ausrichter", "name_kontakt", "address", "contact"]
+class Ausrichter(Address, Contact):
+    __slots__ = ["name_ausrichter", "name_kontakt", "telefon", "fax", "email", "strasse", "plz", "ort", "land"]
     name_ausrichter: str
     name_kontakt: str
-    address: Address
-    contact: Contact
 
 
 @dataclass
-class MeldeAdresse:
+class MeldeAdresse(Contact, Address):
     """
     required fields: name_meldeadresse, email
     """
-    __slots__ = ["name_meldeadresse", "address", "contact"]
+    __slots__ = ["name_meldeadresse", "telefon", "fax", "email", "strasse", "plz", "ort", "land"]
     name_meldeadresse: str
-    address: Address
-    contact: Contact
 
 
 @dataclass
@@ -229,6 +201,7 @@ class Meldeschluss:
     """
     required fields: datum, uhrzeit
     """
+    __slots__ = ["datum", "uhrzeit"]
     datum: str
     uhrzeit: str
 
@@ -340,12 +313,13 @@ class Verein:
     fina_nationen_kuerzel: str
 
 
-# @dataclass
-# class Ansprechpartner(Address, Contact):
-#     """
-#     required fields: name, email
-#     """
-#     name: str
+@dataclass
+class Ansprechpartner(Contact, Address):
+    """
+    required fields: name, email
+    """
+    __slots__ = ["name", "telefon", "fax", "email", "strasse", "plz", "ort", "land"]
+    name: str
 
 
 @dataclass
@@ -476,9 +450,9 @@ class Kampfgericht:
 @dataclass
 class Person:
     """
-    required fields: name, dsv_id, schwimemr_id, geschlecht
+    required fields: name, dsv_id, schwimmer_id, geschlecht
     """
-    __slots__ = ["name", "dsv_id", "schwimemr_id", "geschlecht", "altersklasse"]
+    __slots__ = ["name", "dsv_id", "schwimmer_id", "geschlecht", "altersklasse"]
     name: str
     dsv_id: int
     schwimmer_id: int
@@ -489,6 +463,7 @@ class Person:
 
 @dataclass
 class GrundDerNichtWertung(str, Enum):
+    empty = ""
     disqualifikation = "DS"
     nicht_angetreten = "NA"
     abmeldung = "AB"
@@ -503,11 +478,11 @@ class ReaktionsArt(str, Enum):
 
 
 @dataclass
-class ENM:
+class ENM(str, Enum):
+    empty = ""
     norm_erreicht = "E"
     enm_faellig = "F"
     norm_nicht_erreicht_nachweisbar = "N"
-
 
 
 @dataclass
@@ -643,7 +618,7 @@ class PNErgebnis:
     wk_nr: int
     wk_art: Wettkampfart
     wertungs_id: int
-    paltz: int
+    platz: int
     grund_nicht_wertung: GrundDerNichtWertung
     name: str
     dsv_id: int

@@ -40,8 +40,11 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
         self.files_to_proceed = []
         self.file_lines = []
         self.mapped_events = defaultdict(list)
+        self.mapped_verein = defaultdict(list)
         self.mapped_groups_age = defaultdict(list)
         self.mapped_meeting = {}
+        self.mapped_swimmer_ids = {}
+        self.tmp_pnzwischenzeit = {}
 
     def update(self):
         self.__get_all_files()
@@ -189,8 +192,9 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                     if " ".join(line_values[9]) in self.club_names:
                         mapped_pnergebnis = self._Dsv6ResultClassMapper__pnergebnis_mapper(line=line[12:])
                         swimmer_reg_id = mapped_pnergebnis["dsv_id"]
-                        competition_type = mapped_pnergebnis["wettkampf_art"]
-                        event = self.mapped_events[mapped_pnergebnis["wettkampf_nr"]][0]["event"]
+                        self.mapped_swimmer_ids[mapped_pnergebnis["schwimmer_id"]] = swimmer_reg_id
+                        competition_type = mapped_pnergebnis["wk_art"]
+                        event = self.mapped_events[mapped_pnergebnis["wk_nr"]][0]["event"]
                         group_age = self.mapped_groups_age[mapped_pnergebnis["wertungs_id"]][0]["description"]
                         event_time = mapped_pnergebnis["endzeit"]
                         event_place = int(mapped_pnergebnis["platz"])
@@ -216,6 +220,31 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                                         continue
                         else:
                             swimmers_result[swimmer_reg_id].append(event_dict)
+                if line_values[0][0] == "PNZWISCHENZEIT:":
+                    mapped_data = self._Dsv6DefinitionClassMapper__pnzwischenzeit_mapper(line=line[15:])
+                    swimmer_id = mapped_data["schwimmer_id"]
+                    if swimmer_id in self.mapped_swimmer_ids.keys():
+                        swimmer_reg_id = self.mapped_swimmer_ids[swimmer_id]
+                        competition_type = mapped_data["wk_art"]
+                        event = mapped_data["wk_nr"]
+                        for events in swimmers_result[swimmer_reg_id]:
+                            if event == events["wk_nr"]:
+                                if swimmers_result[swimmer_reg_id][event]["Zwischenzeit"]:
+                                    swimmers_result[swimmer_reg_id][event]["Zwischenzeit"].append(mapped_data)
+                                else:
+                                    swimmers_result[swimmer_reg_id][event]["Zwischenzeit"] = [mapped_data]
+                    else:
+                        self.tmp_pnzwischenzeit[swimmer_id] = mapped_data
+            # proceed the tmp_pnzwischenzeit
+            for _swimmer_id, pn_zwischenzeit in self.tmp_pnzwischenzeit.items():
+                logger.debug(pn_zwischenzeit)
+                if _swimmer_id in self.mapped_swimmer_ids.keys():
+                    swimmer_reg_id = self.mapped_swimmer_ids[_swimmer_id]
+                    event_name = self.mapped_events[pn_zwischenzeit["wk_nr"]][0]["event"]
+                    logger.debug("event_name: {}".format(event_name))
+                    wk_art = pn_zwischenzeit["wk_art"]
+
+
         else:
             logger.info("no lines to proceed!")
         # housekeeping
@@ -236,60 +265,46 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
         if len(self.file_lines) > 0:
             for line in self.file_lines:
                 line_values = [i.split() if i else [] for i in line.split(';')]
-                # print(line_values)
                 if line_values[0][0] == "VERANSTALTUNG:":
                     mapping = self._Dsv6BaseClassMapper__veranstaltung_mapper(line=line[15:])
-                    dc_veranstaltung = Veranstaltung(**mapping)
-                    # dc_veranstaltung.zeitmessung = ZeitMessung(mapping["zeitmessung"])
-                    # dc_veranstaltung.bahnlaenge = Bahnlaenge(mapping["bahnlaenge"])
-                    meeting_definition["Veranstaltung"] = dc_veranstaltung
+                    meeting_definition["Veranstaltung"] = mapping
                 if line_values[0][0] == "VERANSTALTUNGSORT:":
                     mapping = self._Dsv6DefinitionClassMapper__veranstaltungsort_mapper(line=line[19:])
-                    dc_veranstaltungsort = VeranstaltungsOrt(**mapping)
-                    meeting_definition["Veranstaltungsort"] = dc_veranstaltungsort
+                    meeting_definition["Veranstaltungsort"] = mapping
                 if line_values[0][0] == "AUSSCHREIBUNGIMNETZ:":
                     mapping = self._Dsv6DefinitionClassMapper__ausschreibung_im_netz_mapper(line=line[21:])
                     if list(mapping.values())[0] == "":
                         print("AusschreibungImNetz ist nicht gefüllt")
                     else:
-                        dc_ausschreibung_im_netz = AusschreibungImNetz(**mapping)
-                        meeting_definition["AusschreibungImNetz"] = dc_ausschreibung_im_netz
+                        meeting_definition["AusschreibungImNetz"] = mapping
                 if line_values[0][0] == "VERANSTALTER:":
                     mapped_veranstalter = self._Dsv6DefinitionClassMapper__veranstalter_mapper(line=line[14:])
-                    dc_veranstalter = Veranstalter(**mapped_veranstalter)
-                    meeting_definition["Veranstalter"] = dc_veranstalter
+                    meeting_definition["Veranstalter"] = mapped_veranstalter
                 elif line_values[0][0] == "AUSRICHTER:":
                     mapped_data = self._Dsv6DefinitionClassMapper__ausrichter_mapper(line=line[12:])
-                    dc_ausrichter = Ausrichter(**mapped_data)
-                    meeting_definition["Ausrichter"] = dc_ausrichter
+                    meeting_definition["Ausrichter"] = mapped_data
                 elif line_values[0][0] == "MELDEADRESSE:":
                     mapped_data = self._Dsv6DefinitionClassMapper__meldeadresse_mapper(line=line[14:])
-                    dc_meldeadresse = MeldeAdresse(**mapped_data)
-                    meeting_definition["Meldeadresse"] = dc_meldeadresse
+                    meeting_definition["Meldeadresse"] = mapped_data
                 elif line_values[0][0] == "MELDESCHLUSS:":
                     mapped_data = self._Dsv6DefinitionClassMapper__meldeschluss_mapper(line=line[14:])
                     if self.validate_date(date_text=mapped_data["datum"]) and \
                             self.validate_date_time(date_text=mapped_data["uhrzeit"]):
-                        dc_meldeschluss = Meldeschluss(**mapped_data)
-                        meeting_definition["Meldeschluss"] = dc_meldeschluss
+                        meeting_definition["Meldeschluss"] = mapped_data
                     else:
                         logger.error("invalid date format!")
                         # todo: should it break here?
                 elif line_values[0][0] == "BANKVERBINDUNG:":
                     mapped_data = self._Dsv6DefinitionClassMapper__bankverbindung_mapper(line=line[16:])
-                    dc_bankverbindung = Bankverbindung(**mapped_data)
-                    meeting_definition["Bankverbindung"] = dc_bankverbindung
+                    meeting_definition["Bankverbindung"] = mapped_data
                 elif line_values[0][0] == "BESONDERES:":
                     mapped_data = self._Dsv6DefinitionClassMapper__besonderes_mapper(line=line[12:])
-                    dc_besonders = Besonderes(**mapped_data)
-                    meeting_definition["Besonderes"] = dc_besonders
+                    meeting_definition["Besonderes"] = mapped_data
                 elif line_values[0][0] == "NACHWEIS:":
                     mapped_data = self._Dsv6DefinitionClassMapper__nachweis_mapper(line=line[10:])
                     if self.validate_date(date_text=mapped_data["nachweis_von"]) \
                         and self.validate_date(date_text=mapped_data["nachweis_bis"]):
-                        dc_nachweis = Nachweis(**mapped_data)
-                        # dc_nachweis.bahnlaenge = Bahnlaenge(mapped_data["bahnlaenge"])
-                        meeting_definition["Nachweis"] = dc_nachweis
+                        meeting_definition["Nachweis"] = mapped_data
                     else:
                         logger.error("invalid date format!")
                         # todo: should it break here?
@@ -299,17 +314,13 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                             self.validate_date_time(date_text=mapped_data["einlass"]) and \
                             self.validate_date_time(date_text=mapped_data["kampfrichtersitzung"]) and \
                             self.validate_date_time(date_text=mapped_data["anfangszeit"]):
-                        dc_abschnitt = Abschnitt(**mapped_data)
-                        sections.append(dc_abschnitt)
+                        sections.append(mapped_data)
                     else:
                         logger.error("invalid date format!")
                         # todo: should it break here?
                 elif line_values[0][0] == "WETTKAMPF:":
                     mapped_data = self._Dsv6BaseClassMapper__wettkampf_mapper(line=line[11:])
-                    dc_wettkampf = Wettkampf(**mapped_data)
-                    # dc_wettkampf.geschlecht = Geschlecht(mapped_data["geschlecht"])
-                    # dc_wettkampf.ausuebung = Ausuebung(mapped_data["ausuebung"])
-                    events.append(dc_wettkampf)
+                    events.append(mapped_data)
                 elif line_values[0][0] == "WERTUNG:":
                     mapped_data = self._Dsv6BaseClassMapper__wertung_mapper(line=line[9:])
                     if mapped_data["geschlecht"] == "":
@@ -317,15 +328,10 @@ class Dsv6FileHandler(Dsv6DefinitionClassMapper, Dsv6ResultClassMapper):
                             if wk.wettkampf_nr == mapped_data["wettkampf_nr"]:
                                 mapped_data["geschlecht"] = wk.geschlecht
                                 break
-                    dc_wertung = Wertung(**mapped_data)
-                    # dc_wertung.wettkampf_art = Wettkampfart(mapped_data["wettkampf_art"])
-                    # dc_wertung.geschlecht = Geschlecht(mapped_data["geschlecht"])
-                    # dc_wertung.wertungs_klasse = Wertungsklasse(mapped_data["wertungs_klasse"])
-                    group_ages.append(dc_wertung)
+                    group_ages.append(mapped_data)
                 elif line_values[0][0] == "PFLICHTZEIT:":
                     mapped_data = self._Dsv6DefinitionClassMapper__pflichtzeit_mapper(line=line[13:])
-                    dc_pflichtzeit = Pflichtzeit(**mapped_data)
-                    mandatory_times.append(dc_pflichtzeit)
+                    mandatory_times.append(mapped_data)
                 elif line_values[0][0] == "MELDEGELD:":
                     pass
         meeting_definition["Abschnitte"] = sections

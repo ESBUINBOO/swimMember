@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import base64
+import traceback
 from typing import Optional, List, Union
 
 import bson.errors
@@ -61,6 +62,7 @@ async def create_meeting(file: UploadFile = File(...)):
                                                       "detail": "successfully uploaded {}".format(file_name)})
 
     except Exception as err:
+        logger.debug(traceback.print_exc())
         logger.error('Error in create_meeting() err: {}'.format(err))
         return JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": str(err)})
 
@@ -101,7 +103,8 @@ async def update_meeting(meeting_id: str, file: UploadFile = File(...)):
                                                       "detail": "successfully uploaded {}".format(file_name)})
 
     except Exception as err:
-        logger.error('Error in create_meeting() err: {}'.format(err))
+        logger.debug(traceback.print_exc())
+        logger.error('Error in update_meeting() err: {}'.format(err))
         return JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": str(err)})
 
 
@@ -141,7 +144,7 @@ async def get_one_meeting_by_meeting_id(meeting_id: str, details: bool = Query(F
                                                       "message": results,
                                                       "detail": None})
     except Exception as err:
-        logger.error('Error in create_meeting() err: {}'.format(err))
+        logger.error('Error in get_one_meeting_by_meeting_id() err: {}'.format(err))
         return JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": str(err)})
 
 
@@ -156,7 +159,7 @@ async def get_swimmer_results_for_one_meeting(meeting_id: str, swimmer_reg_id: s
                                                       "message": results,
                                                       "detail": None})
     except Exception as err:
-        logger.error('Error in create_meeting() err: {}'.format(err))
+        logger.error('Error in get_swimmer_results_for_one_meeting() err: {}'.format(err))
         return JSONResponse(status_code=500, content={"result": False, "message": "internal error", "detail": str(err)})
 
 

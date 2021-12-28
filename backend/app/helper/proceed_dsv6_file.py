@@ -28,7 +28,6 @@ def proceed_dsv6_file(dsv_file: str, obj_id=None):
     found_doc = mongo_handler.find_one_doc(col="meetings", query={"file_hash": file_hash})
     if found_doc is None:
         results = dsv_handler.analyze_dsv6_file_type(file_to_proceed=dsv_file)
-        print(results)
         if list(results.keys())[0] is dsv_handler.return_def[0]:
             print("its a meeting definition")
             meeting = {}
@@ -37,7 +36,7 @@ def proceed_dsv6_file(dsv_file: str, obj_id=None):
                 if isinstance(v, list):
                     meeting[k] = []
                     for item in v:
-                        meeting[k].append(asdict(item))
+                        meeting[k].append(item)
                 else:
                     # todo: ENUM dataclasses which are fields, wont be casted to dict (its empty),
                     #  so I need to check if the field is enum and set the correct value
@@ -56,7 +55,7 @@ def proceed_dsv6_file(dsv_file: str, obj_id=None):
                     #         break
                     # print(k, asdict(v))
                     # print("k: {} - v: {}".format(k, v))
-                    meeting[k] = asdict(v)
+                    meeting[k] = v
             obj = {"meeting_definition": meeting, "file_hash": [file_hash]}
             doc_id = mongo_handler.insert_doc(col="meetings", query=obj)
             return doc_id
